@@ -1,0 +1,29 @@
+services:
+  c1-frontend-api:
+    build: ./c1-frontend-api
+    ports:
+      - "7071:7071"
+    environment:
+      RABBITMQ_HOST: c2-rabbitmq
+      RABBITMQ_USER: appuser
+      RABBITMQ_PASS: apppass
+    depends_on:
+      - c2-rabbitmq
+
+  c2-rabbitmq:
+    build: ./c2-rabbitmq-broker
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: appuser
+      RABBITMQ_DEFAULT_PASS: apppass
+
+  c3-consumer:
+    build: ./c3-consumer
+    environment:
+      RABBITMQ_HOST: c2-rabbitmq
+      RABBITMQ_USER: appuser
+      RABBITMQ_PASS: apppass
+    depends_on:
+      - c2-rabbitmq
