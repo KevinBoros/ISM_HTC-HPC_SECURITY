@@ -18,6 +18,11 @@ services:
     environment:
       RABBITMQ_DEFAULT_USER: appuser
       RABBITMQ_DEFAULT_PASS: apppass
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   c3-consumer:
     build: ./c3-consumer
@@ -27,3 +32,5 @@ services:
       RABBITMQ_PASS: apppass
     depends_on:
       - c2-rabbitmq
+    volumes:
+      - ./c3-output:/data/output

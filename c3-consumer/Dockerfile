@@ -8,8 +8,13 @@ COPY src/ src/
 COPY pom.xml pom.xml
 COPY mvnw mvnw
 COPY .mvn/ .mvn/
+COPY mpi/ mpi/
 
 RUN sed -i 's/\r$//' mvnw
 RUN ./mvnw clean package
+
+RUN mpicc -Wall -Wextra -O0 -g -o /home/c3-consumer/mpi/bmp_mpi_worker /home/c3-consumer/mpi/bmp_mpi_worker.c -lcrypto
+
+RUN mkdir -p /data/output
 
 CMD ["java", "-jar", "target/c3-consumer-1.0.jar"]
