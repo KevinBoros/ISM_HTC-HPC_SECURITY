@@ -8,6 +8,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.lang.Thread;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -30,7 +32,8 @@ class MpiLauncher {
             String keyHex,
             String inputPath,
             String outputPath,
-            String workerPath
+            String workerPath,
+            StringBuilder mpiLogsSb
     ) throws Exception {
 
         List<String> command = new ArrayList<>();
@@ -60,6 +63,7 @@ class MpiLauncher {
             String line;
             while ((line = reader.readLine()) != null) {
                 System.out.println("[MPI] " + line);
+                 mpiLogsSb.append(line).append("\n");
             }
         }
 
@@ -77,13 +81,30 @@ public final class Consumer {
     public static final String RABBITMQ_PASS = System.getenv().getOrDefault("RABBITMQ_PASS", "apppass");
     public static final int AESBlockSize = 16;
     public static final int MAX_MPI_PROCESSES = 4;
+    private static final List<String> MPI_HOSTS = List.of(
+    "c4-worker-1",
+    "c4-worker-2",
+    "c4-worker-3"
+    );
 
     private static int chooseProcessCount(int byteLength) {
         int totalBlocks = byteLength / AESBlockSize;
         if (totalBlocks <= 0) {
             return 1;
         }
-        return Math.min(MAX_MPI_PROCESSES, totalBlocks);
+        return Math.min(MPI_HOSTS.size(), totalBlocks);
+    }
+
+    private static String writeHostfile(String jobId, int processCount) throws IOException {
+    File hostfile = new File("/mpi-work/" + jobId + "_hosts");
+
+    try (FileWriter writer = new FileWriter(hostfile)) {
+        for (int i = 0; i < processCount; i++) {
+            writer.write(MPI_HOSTS.get(i) + " slots=1\n");
+        }
+    }
+
+    return hostfile.getAbsolutePath();
     }
 
 
@@ -130,10 +151,14 @@ public final class Consumer {
                 JSONObject json = new JSONObject(message);
                 String aesHexKey = json.getString("aesKey");
                 String operation = json.getString("operation").toLowerCase();
+                String jobId = json.getString("jobId");
                 System.out.println("Received message:");
                 System.out.println("File: long JSON string with base64 content omitted for brevity");
-                System.out.println("AES Key: " + aesHexKey);
+                System.out.println("AES Key received, length = " + (aesHexKey.length() / 2) + " bytes");
                 System.out.println("Operation: " + operation);
+                System.out.println("Job ID: " + jobId);
+
+                StringBuilder mpiLogs = new StringBuilder();
 
                 byte[] pictureBytes = Base64.getDecoder().decode(json.getString("pictureBase64"));
                 
@@ -177,7 +202,7 @@ public final class Consumer {
                     int processCount = chooseProcessCount(paddedPixels.length);
                     System.out.println("Encrypt processCount = " + processCount);
 
-                    File paddedText = new File("/tmp/pixels_in.bin");
+                    File paddedText = new File("/mpi-work/job_" + jobId + "_pixels_in.bin");
 
                     paddedText.createNewFile();
 
@@ -187,20 +212,20 @@ public final class Consumer {
 
                     int exitCode = MpiLauncher.runMpiJob(
                             processCount,
-                            //"/home/c3-consumer/mpi/hosts",
-                            null,
+                            writeHostfile(jobId, processCount),
                             "encrypt",
                             aesHexKey,
-                            "/tmp/pixels_in.bin",
-                            "/tmp/pixels_out.bin",
-                            "/home/c3-consumer/mpi/bmp_mpi_worker"
+                            "/mpi-work/job_" + jobId + "_pixels_in.bin",
+                            "/mpi-work/job_" + jobId + "_pixels_out.bin",
+                            "/opt/mpi-app/bmp_mpi_worker",
+                            mpiLogs
                     );
 
                     if (exitCode != 0) {
-                        throw new RuntimeException("MPI job failed with exit code " + exitCode);
+                        throw new RuntimeException("MPI failed with exit code " + exitCode + "\n" + mpiLogs.toString());
                     }
 
-                    File MPIEncrypted = new File("/tmp/pixels_out.bin");
+                    File MPIEncrypted = new File( "/mpi-work/job_" + jobId + "_pixels_out.bin");
                     if (!MPIEncrypted.exists()) {
                         throw new FileNotFoundException("Crypted file written by MPI not found!");
                     }
@@ -211,7 +236,7 @@ public final class Consumer {
                     fis.close();
 
                     //TESTING BLOCK
-                    File encryptedFile = new File("/data/output/encrypted.bmp");
+                    File encryptedFile = new File("/data/output/encrypted_" + jobId + ".bmp");
                     fos = new FileOutputStream(encryptedFile);
                     fos.write(header);
                     fos.write(fileOperatedOnBytes);
@@ -227,7 +252,7 @@ public final class Consumer {
                     int processCount = chooseProcessCount(actualPixels.length);
                     System.out.println("Decrypt processCount = " + processCount);
 
-                    File paddedText = new File("/tmp/pixels_in.bin");
+                    File paddedText = new File("/mpi-work/job_" + jobId + "_pixels_in.bin");
 
                     paddedText.createNewFile();
 
@@ -238,21 +263,21 @@ public final class Consumer {
 
                     int exitCode = MpiLauncher.runMpiJob(
                             processCount,
-                            //"/home/c3-consumer/mpi/hosts",
-                            null,
+                            writeHostfile(jobId, processCount),
                             "decrypt",
                             aesHexKey,
-                            "/tmp/pixels_in.bin",
-                            "/tmp/pixels_out.bin",
-                            "/home/c3-consumer/mpi/bmp_mpi_worker"
+                            "/mpi-work/job_" + jobId + "_pixels_in.bin",
+                            "/mpi-work/job_" + jobId + "_pixels_out.bin",
+                            "/opt/mpi-app/bmp_mpi_worker",
+                            mpiLogs
                     );
 
 
                     if (exitCode != 0) {
-                        throw new RuntimeException("MPI job failed with exit code " + exitCode);
+                        throw new RuntimeException("MPI failed with exit code " + exitCode + "\n" + mpiLogs.toString());
                     }
 
-                    File paddedDecrypted = new File("/tmp/pixels_out.bin");
+                    File paddedDecrypted = new File("/mpi-work/job_" + jobId + "_pixels_out.bin");
                     if (!paddedDecrypted.exists()) {
                         throw new FileNotFoundException("Decrypted file written by MPI not found!");
                     }
@@ -274,7 +299,7 @@ public final class Consumer {
                     System.arraycopy(paddedCryptedBytes, 0, fileOperatedOnBytes, 0, paddedCryptedBytes.length - paddingBytes);
 
                     //TESTING BLOCK
-                    File decryptedFile = new File("/data/output/decrypted.bmp");
+                    File decryptedFile = new File("/data/output/decrypted_" + jobId + ".bmp");
                     fos = new FileOutputStream(decryptedFile);
                     fos.write(header);
                     fos.write(fileOperatedOnBytes);

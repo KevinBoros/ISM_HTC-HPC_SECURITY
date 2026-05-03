@@ -1,20 +1,25 @@
 FROM critoma/amd64_u24_noble_ism_security:latest
+
 WORKDIR /home/c3-consumer
 
 ENV JAVA_HOME=/opt/software/java/jdks/jdk-25.0.1/
 ENV PATH=$JAVA_HOME/bin:$PATH
 
+RUN mkdir -p /opt/mpi-app /mpi-work /data/output
+
 COPY src/ src/
 COPY pom.xml pom.xml
 COPY mvnw mvnw
 COPY .mvn/ .mvn/
-COPY mpi/ mpi/
+COPY mpi/bmp_mpi_worker.c /opt/mpi-app/bmp_mpi_worker.c
+COPY start-c3.sh /usr/local/bin/start-c3.sh
 
 RUN sed -i 's/\r$//' mvnw
 RUN ./mvnw clean package
 
-RUN mpicc -Wall -Wextra -O0 -g -o /home/c3-consumer/mpi/bmp_mpi_worker /home/c3-consumer/mpi/bmp_mpi_worker.c -lcrypto
+RUN mpicc -o /opt/mpi-app/bmp_mpi_worker /opt/mpi-app/bmp_mpi_worker.c -lcrypto
 
-RUN mkdir -p /data/output
+RUN sed -i 's/\r$//' /usr/local/bin/start-c3.sh \
+    && chmod +x /usr/local/bin/start-c3.sh
 
-CMD ["java", "-jar", "target/c3-consumer-1.0.jar"]
+CMD ["/usr/local/bin/start-c3.sh"]

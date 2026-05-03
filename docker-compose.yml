@@ -30,7 +30,33 @@ services:
       RABBITMQ_HOST: c2-rabbitmq
       RABBITMQ_USER: appuser
       RABBITMQ_PASS: apppass
-    depends_on:
-      - c2-rabbitmq
     volumes:
       - ./c3-output:/data/output
+      - ./mpi-work:/mpi-work
+      - ./secrets/mpi:/ssh-secrets
+    depends_on:
+      - c2-rabbitmq
+      - c4-worker-1
+      - c4-worker-2
+      - c4-worker-3
+
+  c4-worker-1:
+    build: ./c4-worker
+    hostname: c4-worker-1
+    volumes:
+      - ./mpi-work:/mpi-work
+      - ./secrets/mpi:/ssh-secrets
+
+  c4-worker-2:
+    build: ./c4-worker
+    hostname: c4-worker-2
+    volumes:
+      - ./mpi-work:/mpi-work
+      - ./secrets/mpi:/ssh-secrets
+
+  c4-worker-3:
+    build: ./c4-worker
+    hostname: c4-worker-3
+    volumes:
+      - ./mpi-work:/mpi-work
+      - ./secrets/mpi:/ssh-secrets

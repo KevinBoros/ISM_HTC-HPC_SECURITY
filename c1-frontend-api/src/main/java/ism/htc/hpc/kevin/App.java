@@ -34,6 +34,8 @@ public final class App {
             });
 
             config.routes.post("/api/upload", ctx -> {
+
+                String jobId = UUID.randomUUID().toString();
                 UploadedFile picture = ctx.uploadedFile("picture");
                 String aesKey = ctx.formParam("aesKey");
                 String operation = ctx.formParam("operation");
@@ -67,8 +69,6 @@ public final class App {
                     message.put("aesKey", aesKey);
                     message.put("operation", operation);
 
-                    String jobId = UUID.randomUUID().toString();
-                    String fakeDownloadUrl = "/api/download/" + jobId;
                     message.put("jobId", jobId);
 
                     byte[] messageBytes = message.toString().getBytes(StandardCharsets.UTF_8);
@@ -79,7 +79,7 @@ public final class App {
                     return;
                 }
                 System.out.println("Received upload");
-                String fakeDownloadUrl = "/api/download/";
+                String fakeDownloadUrl = "/api/download/" + jobId;
 
                 String response =
                     "Upload received\n" +
@@ -90,9 +90,9 @@ public final class App {
                 ctx.result(response);
             });
 
-            config.routes.get("/api/download/{jobId}", ctx -> {
-                String jobId = ctx.pathParam("jobId");
-                ctx.result("Fake download for " + jobId);
+            config.routes.get("/api/download/{paramJobId}", ctx -> {
+                String paramJobId = ctx.pathParam("paramJobId");
+                ctx.result("Fake download for " + paramJobId);
             });
         }).start(PORT);
 

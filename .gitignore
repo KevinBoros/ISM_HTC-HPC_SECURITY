@@ -1,0 +1,9 @@
+secrets/
+mpi-work/
+c3-output/
+*.pem
+id_rsa
+id_rsa.pub
+known_hosts
+*.log
+.vscode/
