@@ -7,3 +7,4 @@ id_rsa.pub
 known_hosts
 *.log
 .vscode/
+c5-storage-api/node_modules/

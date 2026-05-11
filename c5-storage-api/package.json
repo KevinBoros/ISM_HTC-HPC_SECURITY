@@ -1,0 +1,30 @@
+{
+  "name": "c5-storage-api",
+  "version": "1.0.0",
+  "description": "api for mysql database",
+  "keywords": [
+    "express",
+    "api",
+    "mysql"
+  ],
+  "homepage": "https://github.com/KevinBoros/ISM_HTC-HPC_SECURITY#readme",
+  "bugs": {
+    "url": "https://github.com/KevinBoros/ISM_HTC-HPC_SECURITY/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KevinBoros/ISM_HTC-HPC_SECURITY.git"
+  },
+  "license": "UNLICENSED",
+  "author": "Boros Kevin-Cristian",
+  "type": "commonjs",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "body-parser": "^2.2.2",
+    "express": "^5.2.1",
+    "mysql2": "^3.22.3"
+  }
+}

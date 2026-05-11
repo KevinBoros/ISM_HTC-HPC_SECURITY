@@ -60,3 +60,29 @@ services:
     volumes:
       - ./mpi-work:/mpi-work
       - ./secrets/mpi:/ssh-secrets
+
+  c5-storage-api:
+    build: ./c5-storage-api
+    ports:
+      - "3005:3000"
+    environment:
+      MYSQL_HOST: c5-mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: bmpdb
+      MYSQL_USER: kevinuser
+      MYSQL_PASSWORD: kevinpass
+    depends_on:
+      - c5-mysql
+
+  c5-mysql:
+    build: ./c5-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: bmpdb
+      MYSQL_USER: kevinuser
+      MYSQL_PASSWORD: kevinpass
+    volumes:
+    - db_data:/var/lib/mysql
+
+volumes:
+  db_data:
