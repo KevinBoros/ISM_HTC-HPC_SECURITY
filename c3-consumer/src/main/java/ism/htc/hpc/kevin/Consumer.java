@@ -16,6 +16,10 @@ import java.util.Arrays;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.List;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -82,10 +86,13 @@ public final class Consumer {
     public static final int AESBlockSize = 16;
     public static final int MAX_MPI_PROCESSES = 4;
     private static final List<String> MPI_HOSTS = List.of(
+    "c3-consumer",
     "c4-worker-1",
     "c4-worker-2",
     "c4-worker-3"
     );
+    public static final String C5_API_URL = System.getenv().getOrDefault("C5_API_URL", "http://c5-storage-api:3000");
+    private static final HttpClient HTTP = HttpClient.newHttpClient();
 
     private static int chooseProcessCount(int byteLength) {
         int totalBlocks = byteLength / AESBlockSize;
@@ -105,6 +112,43 @@ public final class Consumer {
     }
 
     return hostfile.getAbsolutePath();
+    }
+
+
+    private static void markJobSuccess(String jobId, String filename, byte[] finalBmpBytes) throws Exception {
+        JSONObject body = new JSONObject();
+        body.put("filename", filename);
+        body.put("contentType", "image/bmp");
+        body.put("fileBase64", Base64.getEncoder().encodeToString(finalBmpBytes));
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(C5_API_URL + "/api/jobs/" + jobId + "/success"))
+            .header("Content-Type", "application/json")
+            .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+            .build();
+
+        HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            throw new RuntimeException("C5 success update failed: " + response.body());
+        }
+    }
+
+    private static void markJobFailed(String jobId, String error) {
+        try {
+            JSONObject body = new JSONObject();
+            body.put("error", error);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(C5_API_URL + "/api/jobs/" + jobId + "/fail"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+                .build();
+
+            HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
 
@@ -144,6 +188,7 @@ public final class Consumer {
         DeliverCallback deliverCallback = (consumerTag, delivery) -> {
 
             long tag = delivery.getEnvelope().getDeliveryTag();
+            String jobId = null;
             
             try 
             {
@@ -151,7 +196,7 @@ public final class Consumer {
                 JSONObject json = new JSONObject(message);
                 String aesHexKey = json.getString("aesKey");
                 String operation = json.getString("operation").toLowerCase();
-                String jobId = json.getString("jobId");
+                jobId = json.getString("jobId");
                 System.out.println("Received message:");
                 System.out.println("File: long JSON string with base64 content omitted for brevity");
                 System.out.println("AES Key received, length = " + (aesHexKey.length() / 2) + " bytes");
@@ -235,6 +280,12 @@ public final class Consumer {
 
                     fis.close();
 
+                    byte[] finalBmpBytes = new byte[header.length + fileOperatedOnBytes.length];
+                    System.arraycopy(header, 0, finalBmpBytes, 0, header.length);
+                    System.arraycopy(fileOperatedOnBytes, 0, finalBmpBytes, header.length, fileOperatedOnBytes.length);
+                    String resultFilename = operation + "_" + jobId + ".bmp";
+                    markJobSuccess(jobId, resultFilename, finalBmpBytes);
+
                     //TESTING BLOCK
                     File encryptedFile = new File("/data/output/encrypted_" + jobId + ".bmp");
                     fos = new FileOutputStream(encryptedFile);
@@ -298,6 +349,12 @@ public final class Consumer {
                     fileOperatedOnBytes = new byte[paddedCryptedBytes.length - paddingBytes];
                     System.arraycopy(paddedCryptedBytes, 0, fileOperatedOnBytes, 0, paddedCryptedBytes.length - paddingBytes);
 
+                    byte[] finalBmpBytes = new byte[header.length + fileOperatedOnBytes.length];
+                    System.arraycopy(header, 0, finalBmpBytes, 0, header.length);
+                    System.arraycopy(fileOperatedOnBytes, 0, finalBmpBytes, header.length, fileOperatedOnBytes.length);
+                    String resultFilename = operation + "_" + jobId + ".bmp";
+                    markJobSuccess(jobId, resultFilename, finalBmpBytes);
+
                     //TESTING BLOCK
                     File decryptedFile = new File("/data/output/decrypted_" + jobId + ".bmp");
                     fos = new FileOutputStream(decryptedFile);
@@ -313,8 +370,13 @@ public final class Consumer {
 
         }   
          catch(Exception e) {
-        e.printStackTrace();
-        finalChannel.basicNack(tag, false, false);
+            e.printStackTrace();
+
+            if (jobId != null) {
+                markJobFailed(jobId, e.getMessage());
+            }
+
+            finalChannel.basicNack(tag, false, false);
         }
 
         };

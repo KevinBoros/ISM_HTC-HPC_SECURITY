@@ -5,7 +5,10 @@ WORKDIR /home/c3-consumer
 ENV JAVA_HOME=/opt/software/java/jdks/jdk-25.0.1/
 ENV PATH=$JAVA_HOME/bin:$PATH
 
-RUN mkdir -p /opt/mpi-app /mpi-work /data/output
+RUN mkdir -p /opt/mpi-app /mpi-work /data/output /var/run/sshd \
+    && echo "PermitRootLogin yes" >> /etc/ssh/sshd_config \
+    && echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config \
+    && echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
 
 COPY src/ src/
 COPY pom.xml pom.xml
