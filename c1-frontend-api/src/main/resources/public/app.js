@@ -5,6 +5,12 @@ const changeBtn = document.getElementById("changeBtn");
 const formPane = document.getElementById("formPane");
 const greetingPane = document.getElementById("greetingPane");
 
+const jobStatusBox = document.getElementById("jobStatusBox");
+const jobStatusText = document.getElementById("jobStatusText");
+const downloadLink = document.getElementById("downloadLink");
+
+let currentPollInterval = null;
+
 changeBtn.addEventListener("click", () => {
     formPane.style.display = "block";
     greetingPane.style.display = "none";
@@ -20,10 +26,89 @@ healthBtn.addEventListener("click", async () => {
     }
 });
 
+function extractJobId(uploadResponseText) {
+    const match = uploadResponseText.match(/jobId=([^\n\r]+)/);
+    return match ? match[1].trim() : null;
+}
+
+function showJobStatus(message) {
+    jobStatusBox.style.display = "block";
+    jobStatusText.textContent = message;
+}
+
+function showDownloadLink(jobId) {
+    downloadLink.href = `/api/download/${jobId}`;
+    downloadLink.textContent = "Download result";
+    downloadLink.style.display = "inline-block";
+}
+
+async function checkJobStatus(jobId) {
+    const response = await fetch(`/api/jobs/${jobId}`);
+    const job = await response.json();
+
+    if (!response.ok) {
+        showJobStatus(`Could not read job status: ${job.error || response.statusText}`);
+        return;
+    }
+
+    if (job.status === "pending") {
+        showJobStatus(`Job ${jobId} is still pending...`);
+        return;
+    }
+
+    if (job.status === "success") {
+        showJobStatus(`Job ${jobId} finished successfully.`);
+        showDownloadLink(jobId);
+
+        if (currentPollInterval) {
+            clearInterval(currentPollInterval);
+            currentPollInterval = null;
+        }
+
+        return;
+    }
+
+    if (job.status === "failed") {
+        showJobStatus(`Job ${jobId} failed: ${job.errorMessage || "Unknown error"}`);
+
+        if (currentPollInterval) {
+            clearInterval(currentPollInterval);
+            currentPollInterval = null;
+        }
+
+        return;
+    }
+
+    showJobStatus(`Job ${jobId} status: ${job.status}`);
+}
+
+function startPollingJob(jobId) {
+    if (currentPollInterval) {
+        clearInterval(currentPollInterval);
+    }
+
+    downloadLink.style.display = "none";
+    downloadLink.href = "#";
+
+    showJobStatus(`Job ${jobId} was queued. Waiting for result...`);
+
+    checkJobStatus(jobId);
+
+    currentPollInterval = setInterval(() => {
+        checkJobStatus(jobId).catch(err => {
+            showJobStatus("Status check failed: " + err);
+        });
+    }, 2000);
+}
+
 uploadForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const formData = new FormData(uploadForm);
+
+    output.textContent = "Uploading file...";
+    jobStatusBox.style.display = "none";
+    downloadLink.style.display = "none";
 
     try {
         const response = await fetch("/api/upload", {
@@ -33,6 +118,20 @@ uploadForm.addEventListener("submit", async (e) => {
 
         const text = await response.text();
         output.textContent = text;
+
+        if (!response.ok) {
+            return;
+        }
+
+        const jobId = extractJobId(text);
+
+        if (!jobId) {
+            showJobStatus("Upload succeeded, but no jobId was found in the response.");
+            return;
+        }
+
+        startPollingJob(jobId);
+
     } catch (err) {
         output.textContent = "Upload failed:\n" + err;
     }

@@ -3,6 +3,20 @@ const mysql = require('mysql2/promise');
 
 const app = express();
 app.use(express.json({ limit: "150mb" }));
+
+app.use((req, res, next) => {
+  const start = Date.now();
+
+  res.on("finish", () => {
+    console.log(
+      `[C5] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${Date.now() - start}ms)`
+    );
+  });
+
+  next();
+});
+
+
 const port = 3000;
 
 
@@ -56,6 +70,7 @@ app.post('/api/jobs', async (req, res) => {
 
     await pool.execute(`INSERT INTO jobs (job_id, status, operation, original_filename) VALUES (?, 'pending', ?, ?)`, [jobId, operation, filename]);
 
+    console.log(`[C5] Creating pending job ${jobId}`);
     res.status(201).json({
       jobId,
       status: "pending"
@@ -99,6 +114,7 @@ app.post('/api/jobs/:jobId/success', async (req, res) => {
       return res.status(404).json({ error: 'Job not found' });
     }
 
+    console.log(`[C5] Marking job ${jobId} as success, file=${filename}`);
     res.json({
       jobId,
       status: "success",
@@ -133,6 +149,7 @@ app.post("/api/jobs/:jobId/fail", async (req, res) => {
       return res.status(404).json({ error: "Job not found" });
     }
 
+    console.log(`[C5] Marking job ${jobId} as failed: ${error}`);
     res.json({
       jobId,
       status: "failed"
