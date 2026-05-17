@@ -3,6 +3,7 @@
 #include <openssl/aes.h>
 #include <string.h>
 #include <stdlib.h>
+#include <omp.h>
 
 int main(int argc, char *argv[])  {
    int numTasks, rank;
@@ -100,7 +101,7 @@ int main(int argc, char *argv[])  {
    int localBytes = 0;
 
    MPI_Scatter(sendcounts, 1, MPI_INT, &localBytes, 1, MPI_INT, 0, MPI_COMM_WORLD);
-   printf("[rank %d/%d] localBytes=%d\n", rank, numTasks, localBytes);
+   printf("[rank %d/%d] localBytes=%d\n", rank, numTasks-1, localBytes);
    fflush(stdout);
 
    
@@ -124,15 +125,26 @@ int main(int argc, char *argv[])  {
         MPI_COMM_WORLD
     );
 
+    int localBlocks = localBytes / AES_BLOCK_SIZE;
     AES_KEY keySchedule;
     if (strcmp(operation, "encrypt") == 0) {
         AES_set_encrypt_key(aesKey, aesKeyLen * 8, &keySchedule);
-        for (int i = 0; i < localBytes; i += AES_BLOCK_SIZE) {
+
+        printf("[rank %d] OpenMP max threads=%d\n", rank, omp_get_max_threads());
+        fflush(stdout);
+        #pragma omp parallel for schedule(static)
+        for (int block = 0; block < localBlocks; block++) {
+            int i = block * AES_BLOCK_SIZE;
             AES_ecb_encrypt(localIn + i, localOut + i, &keySchedule, AES_ENCRYPT);
         }
     } else {
         AES_set_decrypt_key(aesKey, aesKeyLen * 8, &keySchedule);
-        for (int i = 0; i < localBytes; i += AES_BLOCK_SIZE) {
+
+        printf("[rank %d] OpenMP max threads=%d\n", rank, omp_get_max_threads());
+        fflush(stdout);
+        #pragma omp parallel for schedule(static)
+        for (int block = 0; block < localBlocks; block++) {
+            int i = block * AES_BLOCK_SIZE;
             AES_ecb_encrypt(localIn + i, localOut + i, &keySchedule, AES_DECRYPT);
         }
     }

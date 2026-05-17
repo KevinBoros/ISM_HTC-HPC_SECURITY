@@ -7,7 +7,7 @@ RUN mkdir -p /opt/mpi-app /mpi-work /var/run/sshd
 COPY mpi/bmp_mpi_worker.c /opt/mpi-app/bmp_mpi_worker.c
 COPY start-worker.sh /usr/local/bin/start-worker.sh
 
-RUN mpicc -o /opt/mpi-app/bmp_mpi_worker /opt/mpi-app/bmp_mpi_worker.c -lcrypto
+RUN mpicc -fopenmp -o /opt/mpi-app/bmp_mpi_worker /opt/mpi-app/bmp_mpi_worker.c -lcrypto
 
 RUN echo "PermitRootLogin yes" >> /etc/ssh/sshd_config \
     && echo "PubkeyAuthentication yes" >> /etc/ssh/sshd_config \

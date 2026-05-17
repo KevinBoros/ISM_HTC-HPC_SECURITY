@@ -101,10 +101,21 @@ function startPollingJob(jobId) {
     }, 2000);
 }
 
+function isValidAesHexKey(key) {
+    return /^[0-9a-fA-F]{32}$|^[0-9a-fA-F]{48}$|^[0-9a-fA-F]{64}$/.test(key);
+}
+
 uploadForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const formData = new FormData(uploadForm);
+
+    const aesKey = formData.get("aesKey");
+
+    if (!isValidAesHexKey(aesKey)) {
+        output.textContent = "Invalid AES key. Use 32, 48, or 64 hex characters for AES-128, AES-192, or AES-256.";
+        return;
+    }
 
     output.textContent = "Uploading file...";
     jobStatusBox.style.display = "none";

@@ -20,7 +20,7 @@ COPY start-c3.sh /usr/local/bin/start-c3.sh
 RUN sed -i 's/\r$//' mvnw
 RUN ./mvnw clean package
 
-RUN mpicc -o /opt/mpi-app/bmp_mpi_worker /opt/mpi-app/bmp_mpi_worker.c -lcrypto
+RUN mpicc -fopenmp -o /opt/mpi-app/bmp_mpi_worker /opt/mpi-app/bmp_mpi_worker.c -lcrypto
 
 RUN sed -i 's/\r$//' /usr/local/bin/start-c3.sh \
     && chmod +x /usr/local/bin/start-c3.sh
