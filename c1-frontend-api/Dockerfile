@@ -9,7 +9,7 @@ COPY pom.xml pom.xml
 COPY mvnw mvnw
 COPY .mvn/ .mvn/
 
-RUN sed -i 's/\r$//' mvnw
+RUN sed -i 's/\r$//' mvnw && chmod +x mvnw
 RUN ./mvnw clean package
 EXPOSE 7071
 

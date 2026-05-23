@@ -17,7 +17,7 @@ COPY .mvn/ .mvn/
 COPY mpi/bmp_mpi_worker.c /opt/mpi-app/bmp_mpi_worker.c
 COPY start-c3.sh /usr/local/bin/start-c3.sh
 
-RUN sed -i 's/\r$//' mvnw
+RUN sed -i 's/\r$//' mvnw && chmod +x mvnw
 RUN ./mvnw clean package
 
 RUN mpicc -fopenmp -o /opt/mpi-app/bmp_mpi_worker /opt/mpi-app/bmp_mpi_worker.c -lcrypto
