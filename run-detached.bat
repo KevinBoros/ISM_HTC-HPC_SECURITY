@@ -28,7 +28,10 @@ docker compose down --remove-orphans
 echo Removing leftover ismclean containers...
 for /f "tokens=*" %%i in ('docker ps -aq --filter "name=ismclean"') do docker rm -f %%i
 
-echo Building and starting attached...
-docker compose up --build
+echo Building and starting detached...
+docker compose up --build -d
+
+echo Status:
+docker compose ps -a
 
 pause

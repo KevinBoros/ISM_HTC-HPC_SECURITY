@@ -30,5 +30,8 @@ if [ -n "$LEFTOVERS" ]; then
     docker rm -f $LEFTOVERS
 fi
 
-echo "Building and starting attached..."
-docker compose up --build
+echo "Building and starting detached..."
+docker compose up --build -d
+
+echo "Status:"
+docker compose ps -a
