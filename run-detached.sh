@@ -30,6 +30,12 @@ if [ -n "$LEFTOVERS" ]; then
     docker rm -f $LEFTOVERS
 fi
 
+echo "Removing containers using host port 8080..."
+PORT_8080_CONTAINERS=$(docker ps -aq --filter "publish=8080")
+if [ -n "$PORT_8080_CONTAINERS" ]; then
+    docker rm -f $PORT_8080_CONTAINERS
+fi
+
 echo "Building and starting detached..."
 docker compose up --build -d
 
