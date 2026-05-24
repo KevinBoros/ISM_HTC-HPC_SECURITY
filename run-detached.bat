@@ -4,6 +4,8 @@ setlocal
 echo Preparing SSH secrets...
 
 if not exist secrets\mpi mkdir secrets\mpi
+if not exist mpi-work mkdir mpi-work
+if not exist c3-output mkdir c3-output
 
 if not exist secrets\mpi\id_rsa (
     ssh-keygen -t rsa -b 4096 -f secrets\mpi\id_rsa -N ""
