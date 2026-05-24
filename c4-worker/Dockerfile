@@ -1,22 +1,13 @@
-FROM ubuntu:24.04
+FROM critoma/amd64_u24_noble_ism_security:latest AS critoma-base
 
-RUN ln -sf /usr/bin/mpirun /usr/local/bin/mpirun || true \
-    && ln -sf /usr/bin/mpicc /usr/local/bin/mpicc || true \
-    && ln -sf /usr/bin/prted /usr/local/bin/prted || true \
-    && ln -sf /usr/bin/prte /usr/local/bin/prte || true \
-    && ln -sf /usr/bin/orted /usr/local/bin/orted || true
-
-
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    openmpi-bin \
-    libopenmpi-dev \
-    openssh-server \
-    openssh-client \
-    libssl-dev \
-    && rm -rf /var/lib/apt/lists/*
+# Reset inherited image metadata so the base image's EXPOSE 8080 is not published.
+FROM scratch
+COPY --from=critoma-base / /
 
 WORKDIR /opt/mpi-app
+
+ENV JAVA_HOME=/opt/software/java/jdks/jdk-25.0.1/
+ENV PATH=$JAVA_HOME/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 COPY mpi/bmp_mpi_worker.c /opt/mpi-app/bmp_mpi_worker.c
 COPY start-worker.sh /usr/local/bin/start-worker.sh

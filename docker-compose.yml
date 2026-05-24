@@ -47,21 +47,28 @@ services:
 
   c4-worker-1:
     build: ./c4-worker
+    image: ismclean-c4-worker
     hostname: c4-worker-1
     volumes:
       - ./mpi-work:/mpi-work
       - ./secrets/mpi:/ssh-secrets
 
   c4-worker-2:
-    build: ./c4-worker
+    image: ismclean-c4-worker
+    pull_policy: never
     hostname: c4-worker-2
+    depends_on:
+      - c4-worker-1
     volumes:
       - ./mpi-work:/mpi-work
       - ./secrets/mpi:/ssh-secrets
 
   c4-worker-3:
-    build: ./c4-worker
+    image: ismclean-c4-worker
+    pull_policy: never
     hostname: c4-worker-3
+    depends_on:
+      - c4-worker-1
     volumes:
       - ./mpi-work:/mpi-work
       - ./secrets/mpi:/ssh-secrets
