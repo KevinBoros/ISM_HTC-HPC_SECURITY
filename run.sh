@@ -3,6 +3,8 @@
 echo "Preparing SSH secrets..."
 
 mkdir -p secrets/mpi
+mkdir -p mpi-work
+mkdir -p c3-output
 
 if [ ! -f secrets/mpi/id_rsa ]; then
     ssh-keygen -t rsa -b 4096 -f secrets/mpi/id_rsa -N ""
