@@ -10,3 +10,4 @@ known_hosts
 c5-storage-api/node_modules/
 node_modules/
 target/
+**/target/
